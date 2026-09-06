@@ -64,7 +64,7 @@ export class WaveManager {
     this.timer = WAVES.prepTime;
     this.spawnAcc = 0;
     this.sound.wave();
-    this.onBanner?.(`DALGA ${wave}`, 'HAZIRLAN');
+    this.onBanner?.(`AŞAMA ${wave}`, 'HAZIRLAN');
   }
 
   _pickSpawn(playerPos) {
@@ -99,7 +99,7 @@ export class WaveManager {
       this.timer -= dt;
       if (this.timer <= 0) {
         this.state = 'combat';
-        this.onBanner?.(`DALGA ${this.wave}`, 'GELİYORLAR');
+        this.onBanner?.(`AŞAMA ${this.wave}`, 'GELİYORLAR');
       }
       return events;
     }
@@ -134,7 +134,7 @@ export class WaveManager {
     if (this.queue.length === 0 && this.aliveCount === 0) {
       this.state = 'clear';
       this.timer = 3.2;
-      this.onBanner?.('DALGA TEMİZ', 'SONRAKİ 3 SANİYE');
+      this.onBanner?.('AŞAMA TEMİZ', 'SONRAKİ 3 SANİYE');
       this.onWaveClear?.(this.wave);
       if (Math.random() < WAVES.medkitChance) {
         const offset = new THREE.Vector3(rand(-4, 4), 0, rand(-4, 4));
