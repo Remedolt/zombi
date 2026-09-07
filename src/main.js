@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Assets } from './Assets.js';
 import { Player } from './Player.js';
+import { PostFX } from './PostFX.js';
 import { Sound } from './Sound.js';
 import { UI } from './UI.js';
 import { WaveManager } from './WaveManager.js';
@@ -30,16 +31,16 @@ class Game {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.42;
+    this.renderer.toneMappingExposure = 1.18;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(
-      75,
+      72,
       window.innerWidth / window.innerHeight,
       0.07,
-      160,
+      170,
     );
 
     this.clock = new THREE.Clock();
@@ -56,6 +57,8 @@ class Game {
     this.weapon = new Weapon(this.camera, this.scene, this.world, this.sound, this.assets);
     this.waves = new WaveManager(this.scene, this.world, this.sound, this.assets);
     this.waves.onBanner = (title, sub) => this.ui.showBanner(title, sub);
+
+    this.post = new PostFX(this.renderer, this.scene, this.camera);
 
     this._bind();
     this.clock.start();
@@ -106,6 +109,7 @@ class Game {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
+    this.post?.resize(w, h);
   }
 
   start() {
@@ -287,7 +291,7 @@ class Game {
       this.ui.drawMinimap(this.player, this.waves, this.world);
     }
 
-    this.renderer.render(this.scene, this.camera);
+    this.post.render();
   }
 }
 

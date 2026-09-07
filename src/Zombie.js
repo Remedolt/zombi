@@ -12,69 +12,114 @@ function buildPlaceholder(zombie, type) {
   const group = new THREE.Group();
   const skin = new THREE.MeshStandardMaterial({
     color: type.color,
-    roughness: 0.84,
-    metalness: 0.04,
+    roughness: 0.78,
+    metalness: 0.05,
     emissive: type.color,
-    emissiveIntensity: 0.05,
+    emissiveIntensity: 0.04,
   });
-  const cloth = new THREE.MeshStandardMaterial({ color: 0x3a4638, roughness: 0.9, metalness: 0.02 });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x2a2c28, roughness: 0.88 });
-  const stain = new THREE.MeshStandardMaterial({ color: 0x5a2418, roughness: 0.8 });
+  const cloth = new THREE.MeshStandardMaterial({ color: 0x3a4638, roughness: 0.92, metalness: 0.02 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x2a2c28, roughness: 0.9 });
+  const stain = new THREE.MeshStandardMaterial({ color: 0x5a2418, roughness: 0.75, metalness: 0.05 });
+  const bone = new THREE.MeshStandardMaterial({ color: 0xc8b898, roughness: 0.7 });
 
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.64, 0.26), cloth);
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.38, 4, 8), cloth);
   torso.position.y = 1.05;
+  torso.scale.set(1.15, 1, 0.75);
   tag(torso, zombie, 'body');
 
-  const tear = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, 0.05), stain);
-  tear.position.set(0.08, 1.08, 0.14);
+  const tear = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), stain);
+  tear.scale.set(1.2, 0.7, 0.5);
+  tear.position.set(0.1, 1.1, 0.14);
 
-  const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.22, 0.24), dark);
-  pelvis.position.y = 0.68;
+  const ribs = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.16, 0.06), bone);
+  ribs.position.set(-0.06, 1.12, 0.13);
+
+  const pelvis = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.08, 3, 8), dark);
+  pelvis.position.y = 0.7;
+  pelvis.scale.set(1.2, 1, 0.85);
   tag(pelvis, zombie, 'body');
 
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), skin);
-  head.scale.set(1.05, 1.12, 0.95);
-  head.position.y = 1.55;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.175, 12, 10), skin);
+  head.scale.set(1.02, 1.14, 0.96);
+  head.position.y = 1.56;
   tag(head, zombie, 'head');
 
-  const hair = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.1, 0.3), dark);
-  hair.position.set(0, 1.72, -0.02);
+  const brow = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 0.08), skin);
+  brow.position.set(0, 1.64, 0.12);
 
-  const eyeMat = new THREE.MeshBasicMaterial({ color: type.eye, fog: false });
-  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), eyeMat);
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6), dark);
+  hair.scale.set(1.05, 0.55, 1.05);
+  hair.position.set(0, 1.7, -0.02);
+
+  const eyeMat = new THREE.MeshStandardMaterial({
+    color: type.eye,
+    emissive: type.eye,
+    emissiveIntensity: 0.85,
+    roughness: 0.35,
+    metalness: 0.1,
+  });
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), eyeMat);
   const eyeR = eyeL.clone();
-  eyeL.position.set(-0.06, 1.58, 0.14);
-  eyeR.position.set(0.06, 1.58, 0.14);
+  eyeL.position.set(-0.055, 1.58, 0.145);
+  eyeR.position.set(0.055, 1.58, 0.145);
+  const pupil = new THREE.Mesh(
+    new THREE.SphereGeometry(0.016, 6, 6),
+    new THREE.MeshBasicMaterial({ color: 0x0a0806 }),
+  );
+  const pupilL = pupil.clone();
+  const pupilR = pupil.clone();
+  pupilL.position.set(-0.055, 1.58, 0.175);
+  pupilR.position.set(0.055, 1.58, 0.175);
 
-  const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.07, 0.12), dark);
-  jaw.position.set(0, 1.38, 0.1);
+  const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.1), dark);
+  jaw.position.set(0, 1.4, 0.1);
+  const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.025, 0.03), bone);
+  tooth.position.set(0, 1.42, 0.15);
 
   const makeArm = (side) => {
     const pivot = new THREE.Group();
-    pivot.position.set(0.33 * side, 1.32, 0.06);
-    const limb = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.54, 0.13), skin);
-    limb.position.set(0, -0.26, 0.04);
-    tag(limb, zombie, 'body');
-    const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.22, 0.16), cloth);
-    sleeve.position.set(0, -0.08, 0.02);
-    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.11, 0.12), skin);
-    hand.position.set(0, -0.52, 0.08);
-    pivot.add(limb, sleeve, hand);
-    pivot.rotation.z = side * 0.22;
-    pivot.rotation.x = -0.55;
+    pivot.position.set(0.3 * side, 1.3, 0.04);
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.22, 3, 6), skin);
+    upper.position.set(0, -0.14, 0.02);
+    tag(upper, zombie, 'body');
+    const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.1, 3, 6), cloth);
+    sleeve.position.set(0, -0.04, 0.02);
+    const lower = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.2, 3, 6), skin);
+    lower.position.set(0, -0.38, 0.06);
+    tag(lower, zombie, 'body');
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6), skin);
+    hand.position.set(0, -0.52, 0.1);
+    const claw = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.06, 5), bone);
+    claw.rotation.x = Math.PI / 2;
+    claw.position.set(0.02 * side, -0.55, 0.14);
+    pivot.add(upper, sleeve, lower, hand, claw);
+    pivot.rotation.z = side * 0.2;
+    pivot.rotation.x = -0.5;
     return pivot;
   };
   const armL = makeArm(-1);
   const armR = makeArm(1);
 
-  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.58, 0.17), dark);
-  const legR = legL.clone();
-  legL.position.set(-0.12, 0.32, 0);
-  legR.position.set(0.12, 0.32, 0);
-  tag(legL, zombie, 'body');
-  tag(legR, zombie, 'body');
+  const makeLeg = (side) => {
+    const leg = new THREE.Group();
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.22, 3, 6), dark);
+    thigh.position.set(0.12 * side, 0.42, 0);
+    tag(thigh, zombie, 'body');
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.2, 3, 6), dark);
+    shin.position.set(0.12 * side, 0.16, 0.02);
+    tag(shin, zombie, 'body');
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.2), dark);
+    boot.position.set(0.12 * side, 0.04, 0.04);
+    leg.add(thigh, shin, boot);
+    return leg;
+  };
+  const legL = makeLeg(-1);
+  const legR = makeLeg(1);
 
-  group.add(torso, tear, pelvis, head, hair, eyeL, eyeR, jaw, armL, armR, legL, legR);
+  group.add(
+    torso, tear, ribs, pelvis, head, brow, hair,
+    eyeL, eyeR, pupilL, pupilR, jaw, tooth, armL, armR, legL, legR,
+  );
   group.userData.parts = { head, jaw, armL, armR, legL, legR, torso, eyes: [eyeL, eyeR] };
   return group;
 }

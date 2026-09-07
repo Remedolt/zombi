@@ -40,7 +40,20 @@ body {
   position: fixed;
   inset: 0;
   z-index: 3;
-  background: radial-gradient(ellipse at center, transparent 46%, rgba(22, 6, 6, 0.42) 100%);
+  background:
+    radial-gradient(ellipse at center, transparent 38%, rgba(18, 8, 4, 0.55) 100%),
+    linear-gradient(180deg, rgba(255, 160, 80, 0.06), transparent 28%, transparent 72%, rgba(20, 40, 80, 0.12));
+  mix-blend-mode: multiply;
+}
+
+#film-grain {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
 }
 
 .hidden {
