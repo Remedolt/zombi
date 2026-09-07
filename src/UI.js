@@ -131,6 +131,8 @@ export class UI {
 
     this.ammoMag.textContent = String(weapon.mag);
     this.ammoReserve.textContent = `/ ${weapon.reserve}`;
+    this.crosshair.classList.toggle('ads', weapon.ads > 0.55);
+    this.crosshair.style.opacity = String(Math.max(0.05, 1 - weapon.ads * 1.15));
 
     if (this._pipCount !== weapon.mag) {
       this._pipCount = weapon.mag;

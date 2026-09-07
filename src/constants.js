@@ -31,9 +31,9 @@ export const WEAPON = {
   range: 92,
   recoilPitch: 0.024,
   recoilYaw: 0.012,
-  adsFov: 48,
+  adsFov: 44,
   hipFov: 72,
-  tracerLife: 0.055,
+  tracerLife: 0.045,
 };
 
 export const ZOMBIE_TYPES = {

@@ -365,17 +365,17 @@ export class World {
         }
       `,
     });
-    const sky = new THREE.Mesh(new THREE.SphereGeometry(148, 64, 40), skyMat);
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(148, 32, 20), skyMat);
     this.scene.add(sky);
 
     const sunMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(6.4, 24, 18),
+      new THREE.SphereGeometry(6.4, 16, 12),
       new THREE.MeshBasicMaterial({ color: 0xffe0a0, fog: false, toneMapped: false }),
     );
     sunMesh.position.set(78, 58, 24);
     this.scene.add(sunMesh);
     const sunHalo = new THREE.Mesh(
-      new THREE.SphereGeometry(14, 20, 14),
+      new THREE.SphereGeometry(14, 12, 10),
       new THREE.MeshBasicMaterial({
         color: 0xffb060,
         fog: false,
@@ -403,11 +403,11 @@ export class World {
       fog: false,
     });
     this._clouds = new THREE.Group();
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 7; i++) {
       const puff = new THREE.Group();
-      for (let k = 0; k < 5; k++) {
+      for (let k = 0; k < 3; k++) {
         const cloud = new THREE.Mesh(
-          new THREE.SphereGeometry(rand(5, 10), 12, 10),
+          new THREE.SphereGeometry(rand(5, 10), 8, 6),
           k % 2 === 0 ? cloudMat : cloudShade,
         );
         cloud.scale.set(rand(1.4, 2.6), 0.28, rand(1.1, 2.0));
@@ -425,28 +425,25 @@ export class World {
     const sun = new THREE.DirectionalLight(0xffd4a8, 2.85);
     sun.position.set(55, 48, 22);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.bias = -0.00055;
     sun.shadow.normalBias = 0.04;
-    sun.shadow.radius = 2.2;
     sun.shadow.camera.near = 4;
-    sun.shadow.camera.far = 130;
-    sun.shadow.camera.left = -58;
-    sun.shadow.camera.right = 58;
-    sun.shadow.camera.top = 58;
-    sun.shadow.camera.bottom = -58;
+    sun.shadow.camera.far = 120;
+    sun.shadow.camera.left = -50;
+    sun.shadow.camera.right = 50;
+    sun.shadow.camera.top = 50;
+    sun.shadow.camera.bottom = -50;
     this.scene.add(sun);
     this.sun = sun;
-    this.scene.add(new THREE.AmbientLight(0xfff0e4, 0.38));
-    const fill = new THREE.DirectionalLight(0xa8c8ff, 0.42);
+    this.scene.add(new THREE.AmbientLight(0xfff0e4, 0.42));
+    const fill = new THREE.DirectionalLight(0xa8c8ff, 0.38);
     fill.position.set(-34, 22, -14);
     this.scene.add(fill);
-    const rim = new THREE.DirectionalLight(0xff8a4a, 0.22);
-    rim.position.set(10, 8, -40);
-    this.scene.add(rim);
+    // Drop rim light — one less directional pass; warm sky already sells the hour.
 
     // Lightweight airborne dust motes (single draw call)
-    const moteCount = 80;
+    const moteCount = 36;
     const motePositions = new Float32Array(moteCount * 3);
     for (let i = 0; i < moteCount; i++) {
       motePositions[i * 3] = rand(-28, 28);
@@ -459,7 +456,7 @@ export class World {
       color: 0xffe6c8,
       size: 0.07,
       transparent: true,
-      opacity: 0.35,
+      opacity: 0.32,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       sizeAttenuation: true,
@@ -467,6 +464,7 @@ export class World {
     });
     this._dust = new THREE.Points(moteGeo, moteMat);
     this._dust.frustumCulled = false;
+    this._dustTick = 0;
     this.scene.add(this._dust);
   }
 
@@ -614,27 +612,24 @@ export class World {
     this.addBox(x + w * 0.18, h + 0.42, z - d * 0.12, 1.4, 0.55, 1.1, acMat, false);
 
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x2c3036, roughness: 0.45, metalness: 0.35 });
-    const glassMat = new THREE.MeshPhysicalMaterial({
+    // Standard + emissive glass (no transmission — transmission was a major stutter source)
+    const glassMat = new THREE.MeshStandardMaterial({
       color: 0xa8d8f0,
       emissive: 0x4a7a98,
-      emissiveIntensity: 0.28,
-      roughness: 0.05,
-      metalness: 0.15,
-      transmission: 0.35,
-      thickness: 0.2,
+      emissiveIntensity: 0.32,
+      roughness: 0.18,
+      metalness: 0.25,
       transparent: true,
-      opacity: 0.78,
-      clearcoat: 0.6,
-      clearcoatRoughness: 0.1,
+      opacity: 0.72,
     });
-    const darkGlass = new THREE.MeshPhysicalMaterial({
+    const darkGlass = new THREE.MeshStandardMaterial({
       color: 0x3a5568,
-      roughness: 0.1,
-      metalness: 0.2,
-      transmission: 0.15,
+      emissive: 0x1a2834,
+      emissiveIntensity: 0.12,
+      roughness: 0.28,
+      metalness: 0.22,
       transparent: true,
-      opacity: 0.88,
-      clearcoat: 0.4,
+      opacity: 0.82,
     });
 
     const towardRoad = x >= 0 ? -1 : 1;
@@ -706,17 +701,14 @@ export class World {
     awning.castShadow = true;
     this.scene.add(awning);
 
-    const shopMat = new THREE.MeshPhysicalMaterial({
+    const shopMat = new THREE.MeshStandardMaterial({
       color: 0x9ecce8,
-      roughness: 0.06,
-      metalness: 0.2,
+      roughness: 0.16,
+      metalness: 0.28,
       emissive: 0x1a3040,
-      emissiveIntensity: 0.22,
-      transmission: 0.4,
-      thickness: 0.25,
+      emissiveIntensity: 0.28,
       transparent: true,
-      opacity: 0.72,
-      clearcoat: 0.7,
+      opacity: 0.7,
     });
     const shopFrameMat = new THREE.MeshStandardMaterial({ color: 0x2c3036, roughness: 0.5, metalness: 0.25 });
     for (const side of [-1, 1]) {
@@ -825,25 +817,23 @@ export class World {
   _makeCar(x, z, rotY, wrecked) {
     const group = new THREE.Group();
     const bodyCol = wrecked ? 0x4a5048 : pick([0x2a3a52, 0x5a2a22, 0x2a4a28, 0x3a3a48, 0x6a5a2a]);
-    const paint = new THREE.MeshPhysicalMaterial({
+    const paint = new THREE.MeshStandardMaterial({
       color: bodyCol,
-      roughness: wrecked ? 0.72 : 0.28,
-      metalness: wrecked ? 0.35 : 0.65,
-      clearcoat: wrecked ? 0.05 : 0.55,
-      clearcoatRoughness: wrecked ? 0.8 : 0.25,
+      roughness: wrecked ? 0.72 : 0.32,
+      metalness: wrecked ? 0.35 : 0.62,
     });
     const body = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.52, 4.35), paint);
     body.position.y = 0.48;
     const cabin = new THREE.Mesh(
       new THREE.BoxGeometry(1.58, 0.52, 2.0),
-      new THREE.MeshPhysicalMaterial({
+      new THREE.MeshStandardMaterial({
         color: 0x7eb8d8,
-        roughness: 0.08,
+        roughness: 0.18,
         metalness: 0.35,
-        transmission: 0.35,
-        thickness: 0.4,
         transparent: true,
         opacity: 0.78,
+        emissive: 0x203848,
+        emissiveIntensity: 0.15,
       }),
     );
     cabin.position.set(0, 0.98, -0.15);
@@ -984,11 +974,10 @@ export class World {
   }
 
   _buildLamps() {
-    const poleMat = new THREE.MeshPhysicalMaterial({
+    const poleMat = new THREE.MeshStandardMaterial({
       color: 0x2a2e34,
-      metalness: 0.82,
-      roughness: 0.28,
-      clearcoat: 0.25,
+      metalness: 0.78,
+      roughness: 0.32,
     });
     const lampMat = new THREE.MeshStandardMaterial({
       color: 0xfff2d4,
@@ -1005,7 +994,7 @@ export class World {
 
     let lit = 0;
     for (const [x, z] of spots) {
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 5.2, 10), poleMat);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 5.2, 8), poleMat);
       pole.position.set(x, 2.6, z);
       pole.castShadow = true;
       this.scene.add(pole);
@@ -1019,9 +1008,9 @@ export class World {
       lamp.position.set(lx, 5.0, z);
       this.scene.add(lamp);
 
-      // Warm pool lights on every other lamp to keep FPS healthy
-      if (lit % 2 === 0) {
-        const glow = new THREE.PointLight(0xffc070, 1.15, 14, 1.8);
+      // One warm pool light per ~3 lamps — emissive lamp heads carry the rest
+      if (lit % 3 === 0) {
+        const glow = new THREE.PointLight(0xffc070, 1.05, 12, 2);
         glow.position.set(lx, 4.7, z);
         this.scene.add(glow);
       }
@@ -1089,8 +1078,9 @@ export class World {
       [6.4, -12],
       [-6.2, 8],
     ];
+    let fireLit = 0;
     for (const [x, z] of sites) {
-      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.42, 0.9, 10), barrelMat);
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.42, 0.9, 8), barrelMat);
       barrel.position.set(x, 0.45, z);
       barrel.castShadow = true;
       this.scene.add(barrel);
@@ -1102,12 +1092,16 @@ export class World {
       );
       this.colliders.push(collider);
 
-      const light = new THREE.PointLight(0xff6a22, 0.55, 8, 2);
-      light.position.set(x, 1.3, z);
-      this.scene.add(light);
+      let light = null;
+      if (fireLit % 2 === 0) {
+        light = new THREE.PointLight(0xff6a22, 0.7, 7, 2);
+        light.position.set(x, 1.3, z);
+        this.scene.add(light);
+      }
+      fireLit += 1;
 
       const sprites = [];
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 2; i++) {
         const mat = new THREE.SpriteMaterial({
           map: this.fireTex,
           blending: THREE.AdditiveBlending,
@@ -1115,10 +1109,10 @@ export class World {
           transparent: true,
         });
         const spr = new THREE.Sprite(mat);
-        spr.position.set(x, 1.05 + i * 0.18, z);
-        spr.scale.set(0.7, 0.9, 1);
+        spr.position.set(x, 1.05 + i * 0.22, z);
+        spr.scale.set(0.75, 0.95, 1);
         this.scene.add(spr);
-        sprites.push({ spr, ox: x, oz: z, oy: 1.05 + i * 0.18 });
+        sprites.push({ spr, ox: x, oz: z, oy: 1.05 + i * 0.22 });
       }
       const entry = {
         mesh: barrel,
@@ -1140,7 +1134,8 @@ export class World {
   explodeBarrel(entry) {
     if (!entry || entry.exploded) return null;
     entry.exploded = true;
-    this.scene.remove(entry.mesh, entry.light);
+    this.scene.remove(entry.mesh);
+    if (entry.light) this.scene.remove(entry.light);
     for (const s of entry.sprites) this.scene.remove(s.spr);
     this.staticMeshes = this.staticMeshes.filter((m) => m !== entry.mesh);
     this.colliders = this.colliders.filter((c) => c !== entry.collider);
@@ -1307,19 +1302,25 @@ export class World {
   update(dt, elapsed) {
     if (this._clouds) this._clouds.rotation.y += dt * 0.006;
     if (this._dust) {
-      const arr = this._dust.geometry.attributes.position.array;
-      for (let i = 0; i < arr.length; i += 3) {
-        arr[i] += Math.sin(elapsed * 0.35 + i) * 0.004;
-        arr[i + 1] += 0.12 * dt;
-        arr[i + 2] += Math.cos(elapsed * 0.28 + i * 0.1) * 0.003;
-        if (arr[i + 1] > 7) arr[i + 1] = 0.35;
+      this._dustTick = (this._dustTick || 0) + 1;
+      if (this._dustTick % 2 === 0) {
+        const arr = this._dust.geometry.attributes.position.array;
+        const step = dt * 2;
+        for (let i = 0; i < arr.length; i += 3) {
+          arr[i] += Math.sin(elapsed * 0.35 + i) * 0.004;
+          arr[i + 1] += 0.12 * step;
+          arr[i + 2] += Math.cos(elapsed * 0.28 + i * 0.1) * 0.003;
+          if (arr[i + 1] > 7) arr[i + 1] = 0.35;
+        }
+        this._dust.geometry.attributes.position.needsUpdate = true;
       }
-      this._dust.geometry.attributes.position.needsUpdate = true;
     }
     for (const fire of this.fires) {
       if (fire.exploded) continue;
       fire.phase += dt * 9;
-      fire.light.intensity = 0.45 + Math.sin(fire.phase) * 0.12 + Math.random() * 0.05;
+      if (fire.light) {
+        fire.light.intensity = 0.55 + Math.sin(fire.phase) * 0.14 + Math.random() * 0.05;
+      }
       for (let i = 0; i < fire.sprites.length; i++) {
         const s = fire.sprites[i];
         const wobble = Math.sin(elapsed * 8 + i) * 0.08;
