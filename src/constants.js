@@ -29,11 +29,11 @@ export const WEAPON = {
   fireInterval: 0.092,
   reloadTime: 2.08,
   range: 92,
-  recoilPitch: 0.022,
-  recoilYaw: 0.01,
-  adsFov: 50,
-  hipFov: 75,
-  tracerLife: 0.07,
+  recoilPitch: 0.024,
+  recoilYaw: 0.012,
+  adsFov: 48,
+  hipFov: 72,
+  tracerLife: 0.055,
 };
 
 export const ZOMBIE_TYPES = {
