@@ -9,7 +9,11 @@ function canvasTexture(size, paint, colorSpace = THREE.SRGBColorSpace) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.colorSpace = colorSpace;
-  texture.anisotropy = 16;
+  // Cap anisotropy — 16 buys little past 4–8 and burns fill on mobile GPUs
+  texture.anisotropy = 4;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
   return texture;
 }
 
@@ -52,17 +56,17 @@ function asphaltTexture() {
 }
 
 function asphaltBumpTexture() {
-  return canvasTexture(512, (ctx, size) => {
+  return canvasTexture(256, (ctx, size) => {
     ctx.fillStyle = '#808080';
     ctx.fillRect(0, 0, size, size);
-    for (let i = 0; i < 9000; i++) {
+    for (let i = 0; i < 4200; i++) {
       const n = 90 + Math.random() * 80;
       ctx.fillStyle = `rgb(${n},${n},${n})`;
       ctx.fillRect(Math.random() * size, Math.random() * size, 2, 2);
     }
     ctx.strokeStyle = '#3a3a3a';
     ctx.lineWidth = 1.2;
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 14; i++) {
       ctx.beginPath();
       let x = Math.random() * size;
       let y = Math.random() * size;
@@ -110,7 +114,7 @@ function brickTexture() {
 }
 
 function brickBumpTexture() {
-  return canvasTexture(512, (ctx, size) => {
+  return canvasTexture(256, (ctx, size) => {
     ctx.fillStyle = '#2c2c2c';
     ctx.fillRect(0, 0, size, size);
     const bw = 46;
@@ -323,8 +327,9 @@ export class World {
   }
 
   _buildAtmosphere() {
-    this.scene.background = new THREE.Color(0x8eb6d8);
-    this.scene.fog = new THREE.Fog(0xb8cfe0, 38, 145);
+    this.scene.background = new THREE.Color(0x7aa4c8);
+    // Warm late-day haze — near fog softens the horizon without washing mid-range
+    this.scene.fog = new THREE.Fog(0xc2b8a8, 32, 132);
 
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
@@ -344,43 +349,42 @@ export class World {
         void main() {
           vec3 n = normalize(vDir);
           float h = n.y;
-          vec3 zenith = vec3(0.16, 0.38, 0.78);
-          vec3 mid = vec3(0.45, 0.68, 0.92);
-          vec3 horizon = vec3(0.98, 0.78, 0.55);
-          vec3 haze = vec3(0.72, 0.62, 0.52);
-          vec3 col = mix(haze, horizon, smoothstep(-0.18, 0.04, h));
-          col = mix(col, mid, smoothstep(0.04, 0.32, h));
-          col = mix(col, zenith, smoothstep(0.32, 0.92, h));
-          vec3 sunDir = normalize(vec3(0.55, 0.48, 0.18));
+          vec3 zenith = vec3(0.12, 0.28, 0.62);
+          vec3 mid = vec3(0.42, 0.62, 0.88);
+          vec3 horizon = vec3(1.0, 0.72, 0.48);
+          vec3 haze = vec3(0.78, 0.58, 0.48);
+          vec3 col = mix(haze, horizon, smoothstep(-0.22, 0.06, h));
+          col = mix(col, mid, smoothstep(0.06, 0.36, h));
+          col = mix(col, zenith, smoothstep(0.36, 0.95, h));
+          vec3 sunDir = normalize(vec3(0.55, 0.42, 0.18));
           float mu = max(dot(n, sunDir), 0.0);
-          col += vec3(1.0, 0.72, 0.35) * pow(mu, 5.0) * 0.55;
-          col += vec3(1.0, 0.92, 0.7) * pow(mu, 48.0) * 0.9;
-          col += vec3(1.0, 0.98, 0.9) * pow(mu, 280.0) * 2.4;
-          float scatter = pow(1.0 - clamp(h, 0.0, 1.0), 2.2);
-          col += vec3(1.0, 0.45, 0.22) * scatter * 0.22;
-          // soft cloud bands
-          float bands = sin(n.x * 8.0 + n.z * 5.0) * 0.5 + 0.5;
-          col += vec3(1.0, 0.95, 0.9) * bands * smoothstep(0.12, 0.45, h) * 0.04;
+          col += vec3(1.0, 0.68, 0.32) * pow(mu, 4.5) * 0.65;
+          col += vec3(1.0, 0.9, 0.65) * pow(mu, 36.0) * 1.05;
+          col += vec3(1.0, 0.98, 0.9) * pow(mu, 220.0) * 2.6;
+          float scatter = pow(1.0 - clamp(h, 0.0, 1.0), 2.0);
+          col += vec3(1.0, 0.42, 0.2) * scatter * 0.28;
+          float bands = sin(n.x * 7.0 + n.z * 4.5) * 0.5 + 0.5;
+          col += vec3(1.0, 0.94, 0.88) * bands * smoothstep(0.1, 0.42, h) * 0.055;
           gl_FragColor = vec4(col, 1.0);
         }
       `,
     });
-    const sky = new THREE.Mesh(new THREE.SphereGeometry(148, 32, 20), skyMat);
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(148, 24, 16), skyMat);
     this.scene.add(sky);
 
     const sunMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(6.4, 16, 12),
-      new THREE.MeshBasicMaterial({ color: 0xffe0a0, fog: false, toneMapped: false }),
+      new THREE.SphereGeometry(7.2, 12, 10),
+      new THREE.MeshBasicMaterial({ color: 0xffe8b8, fog: false, toneMapped: false }),
     );
-    sunMesh.position.set(78, 58, 24);
+    sunMesh.position.set(78, 52, 24);
     this.scene.add(sunMesh);
     const sunHalo = new THREE.Mesh(
-      new THREE.SphereGeometry(14, 12, 10),
+      new THREE.SphereGeometry(16, 10, 8),
       new THREE.MeshBasicMaterial({
-        color: 0xffb060,
+        color: 0xffa050,
         fog: false,
         transparent: true,
-        opacity: 0.18,
+        opacity: 0.22,
         depthWrite: false,
         toneMapped: false,
       }),
@@ -389,25 +393,25 @@ export class World {
     this.scene.add(sunHalo);
 
     const cloudMat = new THREE.MeshLambertMaterial({
-      color: 0xfff4e8,
+      color: 0xfff2e4,
       transparent: true,
-      opacity: 0.58,
+      opacity: 0.52,
       depthWrite: false,
       fog: false,
     });
     const cloudShade = new THREE.MeshLambertMaterial({
-      color: 0xe8c8a8,
+      color: 0xe0b898,
       transparent: true,
-      opacity: 0.4,
+      opacity: 0.36,
       depthWrite: false,
       fog: false,
     });
     this._clouds = new THREE.Group();
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 5; i++) {
       const puff = new THREE.Group();
       for (let k = 0; k < 3; k++) {
         const cloud = new THREE.Mesh(
-          new THREE.SphereGeometry(rand(5, 10), 8, 6),
+          new THREE.SphereGeometry(rand(5, 10), 6, 5),
           k % 2 === 0 ? cloudMat : cloudShade,
         );
         cloud.scale.set(rand(1.4, 2.6), 0.28, rand(1.1, 2.0));
@@ -419,31 +423,30 @@ export class World {
     }
     this.scene.add(this._clouds);
 
-    const hemi = new THREE.HemisphereLight(0xffe2c4, 0x4a6a48, 1.15);
+    const hemi = new THREE.HemisphereLight(0xffe0c0, 0x3e5a42, 1.22);
     this.scene.add(hemi);
 
-    const sun = new THREE.DirectionalLight(0xffd4a8, 2.85);
+    const sun = new THREE.DirectionalLight(0xffd0a0, 2.95);
     sun.position.set(55, 48, 22);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.bias = -0.00055;
     sun.shadow.normalBias = 0.04;
     sun.shadow.camera.near = 4;
-    sun.shadow.camera.far = 120;
-    sun.shadow.camera.left = -50;
-    sun.shadow.camera.right = 50;
-    sun.shadow.camera.top = 50;
-    sun.shadow.camera.bottom = -50;
+    sun.shadow.camera.far = 100;
+    sun.shadow.camera.left = -42;
+    sun.shadow.camera.right = 42;
+    sun.shadow.camera.top = 42;
+    sun.shadow.camera.bottom = -42;
     this.scene.add(sun);
     this.sun = sun;
-    this.scene.add(new THREE.AmbientLight(0xfff0e4, 0.42));
-    const fill = new THREE.DirectionalLight(0xa8c8ff, 0.38);
+    this.scene.add(new THREE.AmbientLight(0xffefe0, 0.38));
+    const fill = new THREE.DirectionalLight(0x9eb8e8, 0.34);
     fill.position.set(-34, 22, -14);
     this.scene.add(fill);
-    // Drop rim light — one less directional pass; warm sky already sells the hour.
 
     // Lightweight airborne dust motes (single draw call)
-    const moteCount = 36;
+    const moteCount = 28;
     const motePositions = new Float32Array(moteCount * 3);
     for (let i = 0; i < moteCount; i++) {
       motePositions[i * 3] = rand(-28, 28);
@@ -453,10 +456,10 @@ export class World {
     const moteGeo = new THREE.BufferGeometry();
     moteGeo.setAttribute('position', new THREE.BufferAttribute(motePositions, 3));
     const moteMat = new THREE.PointsMaterial({
-      color: 0xffe6c8,
-      size: 0.07,
+      color: 0xffe0b8,
+      size: 0.08,
       transparent: true,
-      opacity: 0.32,
+      opacity: 0.28,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       sizeAttenuation: true,
@@ -472,10 +475,10 @@ export class World {
     const groundMat = new THREE.MeshStandardMaterial({
       map: this.asphalt,
       bumpMap: this.asphaltBump,
-      bumpScale: 0.12,
-      color: 0x9aa0a8,
-      roughness: 0.88,
-      metalness: 0.08,
+      bumpScale: 0.14,
+      color: 0xa4aab2,
+      roughness: 0.82,
+      metalness: 0.12,
     });
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(this.halfSize * 2.4, this.halfSize * 2.4),
@@ -514,10 +517,10 @@ export class World {
     }
 
     const stripeMat = new THREE.MeshStandardMaterial({
-      color: 0xe8d060,
-      roughness: 0.48,
-      emissive: 0x3a3008,
-      emissiveIntensity: 0.08,
+      color: 0xf0d868,
+      roughness: 0.42,
+      emissive: 0x4a3808,
+      emissiveIntensity: 0.14,
     });
     for (let z = -48; z <= 48; z += 6) {
       const dash = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.03, 2.4), stripeMat);
@@ -614,22 +617,22 @@ export class World {
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x2c3036, roughness: 0.45, metalness: 0.35 });
     // Standard + emissive glass (no transmission — transmission was a major stutter source)
     const glassMat = new THREE.MeshStandardMaterial({
-      color: 0xa8d8f0,
-      emissive: 0x4a7a98,
-      emissiveIntensity: 0.32,
-      roughness: 0.18,
-      metalness: 0.25,
+      color: 0xb0dff5,
+      emissive: 0x5a8aaa,
+      emissiveIntensity: 0.38,
+      roughness: 0.16,
+      metalness: 0.28,
       transparent: true,
-      opacity: 0.72,
+      opacity: 0.7,
     });
     const darkGlass = new THREE.MeshStandardMaterial({
       color: 0x3a5568,
-      emissive: 0x1a2834,
-      emissiveIntensity: 0.12,
-      roughness: 0.28,
-      metalness: 0.22,
+      emissive: 0x1e3040,
+      emissiveIntensity: 0.16,
+      roughness: 0.26,
+      metalness: 0.24,
       transparent: true,
-      opacity: 0.82,
+      opacity: 0.8,
     });
 
     const towardRoad = x >= 0 ? -1 : 1;
@@ -1319,7 +1322,7 @@ export class World {
       if (fire.exploded) continue;
       fire.phase += dt * 9;
       if (fire.light) {
-        fire.light.intensity = 0.55 + Math.sin(fire.phase) * 0.14 + Math.random() * 0.05;
+        fire.light.intensity = 0.55 + Math.sin(fire.phase) * 0.18 + Math.sin(fire.phase * 2.7) * 0.06;
       }
       for (let i = 0; i < fire.sprites.length; i++) {
         const s = fire.sprites[i];

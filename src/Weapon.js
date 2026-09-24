@@ -4,8 +4,8 @@ import { WEAPON, COMBAT, lerp, rand } from './constants.js';
 function steel(color, extras = {}) {
   return new THREE.MeshStandardMaterial({
     color,
-    roughness: 0.32,
-    metalness: 0.88,
+    roughness: 0.28,
+    metalness: 0.92,
     fog: false,
     ...extras,
   });
@@ -14,8 +14,8 @@ function steel(color, extras = {}) {
 function polymer(color, extras = {}) {
   return new THREE.MeshStandardMaterial({
     color,
-    roughness: 0.82,
-    metalness: 0.08,
+    roughness: 0.8,
+    metalness: 0.06,
     fog: false,
     ...extras,
   });
@@ -54,13 +54,13 @@ function softSpriteTexture(stops) {
 
 function buildAssaultRifle() {
   const root = new THREE.Group();
-  const dark = steel(0x1a1d22, { roughness: 0.38, metalness: 0.85 });
-  const gun = steel(0x3a414c, { roughness: 0.36, metalness: 0.86 });
-  const blued = steel(0x12151a, { roughness: 0.28, metalness: 0.92 });
+  const dark = steel(0x181b20, { roughness: 0.34, metalness: 0.9 });
+  const gun = steel(0x3e4652, { roughness: 0.3, metalness: 0.9 });
+  const blued = steel(0x101318, { roughness: 0.22, metalness: 0.95 });
   const poly = polymer(0x1c1e1a);
-  const gripMat = polymer(0x151710, { roughness: 0.9 });
-  const magCol = polymer(0x2a3222, { roughness: 0.78, metalness: 0.12 });
-  const brass = steel(0xb08a3a, { roughness: 0.42, metalness: 0.8 });
+  const gripMat = polymer(0x151710, { roughness: 0.88 });
+  const magCol = polymer(0x2a3222, { roughness: 0.76, metalness: 0.1 });
+  const brass = steel(0xc49842, { roughness: 0.36, metalness: 0.85 });
 
   addBox(root, 0.052, 0.062, 0.3, gun, 0, 0.008, 0.01);
   addBox(root, 0.046, 0.038, 0.27, dark, 0, 0.052, -0.01);
@@ -142,21 +142,21 @@ function buildAssaultRifle() {
   addBox(optic, t, fh, t, blued, -fw * 0.5, 0, -fd * 0.48);
 
   const glassMat = new THREE.MeshBasicMaterial({
-    color: 0x6a90a8,
+    color: 0x7ab0c8,
     transparent: true,
-    opacity: 0.12,
+    opacity: 0.1,
     depthWrite: false,
     side: THREE.DoubleSide,
     fog: false,
   });
-  const glass = new THREE.Mesh(new THREE.CircleGeometry(0.017, 20), glassMat);
+  const glass = new THREE.Mesh(new THREE.CircleGeometry(0.017, 16), glassMat);
   glass.position.set(0, 0, -0.01);
   optic.add(glass);
 
   const reticle = new THREE.Mesh(
-    new THREE.CircleGeometry(0.0024, 12),
+    new THREE.CircleGeometry(0.0022, 10),
     new THREE.MeshBasicMaterial({
-      color: 0xff1a1a,
+      color: 0xff2211,
       fog: false,
       toneMapped: false,
       depthWrite: false,
@@ -169,12 +169,12 @@ function buildAssaultRifle() {
   optic.add(reticle);
 
   const glow = new THREE.Mesh(
-    new THREE.RingGeometry(0.0032, 0.0065, 20),
+    new THREE.RingGeometry(0.003, 0.007, 16),
     new THREE.MeshBasicMaterial({
-      color: 0xff4444,
+      color: 0xff5533,
       fog: false,
       transparent: true,
-      opacity: 0.65,
+      opacity: 0.7,
       toneMapped: false,
       depthWrite: false,
       side: THREE.DoubleSide,
@@ -186,11 +186,11 @@ function buildAssaultRifle() {
 
   // Soft vignette disc around glass (helps sell "looking through" in ADS)
   const hood = new THREE.Mesh(
-    new THREE.RingGeometry(0.017, 0.028, 24),
+    new THREE.RingGeometry(0.017, 0.03, 20),
     new THREE.MeshBasicMaterial({
-      color: 0x0a0c10,
+      color: 0x06080c,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.62,
       depthWrite: false,
       side: THREE.DoubleSide,
       fog: false,
@@ -379,6 +379,21 @@ export class Weapon {
     this._freeParticles = [];
     this._freeTracers = [];
     this._freeCasings = [];
+    this._freeImpacts = [];
+    this._zombieMeshes = [];
+    this._hitLocal = new THREE.Vector3();
+    this._resultPoint = new THREE.Vector3();
+    this._farPoint = new THREE.Vector3();
+    this._shotResult = {
+      hit: false,
+      headshot: false,
+      killed: false,
+      xp: 0,
+      zombie: null,
+      point: null,
+      blast: null,
+      empty: false,
+    };
 
     this._tracerGeo = new THREE.CylinderGeometry(0.008, 0.003, 1, 4);
     this._tracerGeo.rotateX(Math.PI / 2);
@@ -469,6 +484,15 @@ export class Weapon {
         life: 0,
       });
     }
+    for (let i = 0; i < MAX_IMPACTS; i++) {
+      const isCore = i % 2 === 0;
+      const mesh = isCore
+        ? new THREE.Mesh(this._impactCoreGeo, this._impactCoreMat.clone())
+        : new THREE.Mesh(this._decalGeo, this._decalMat.clone());
+      mesh.visible = false;
+      this.scene.add(mesh);
+      this._freeImpacts.push({ mesh, life: 0, fade: true, kind: isCore ? 'core' : 'decal' });
+    }
   }
 
   get adsActive() {
@@ -516,8 +540,12 @@ export class Weapon {
       c.mesh.visible = false;
       this._freeCasings.push(c);
     }
-    for (const i of this.impacts) this.scene.remove(i.mesh);
-    this.impacts.length = 0;
+    while (this.impacts.length) {
+      const i = this.impacts.pop();
+      i.mesh.visible = false;
+      if (i.mesh.material) i.mesh.material.opacity = i.kind === 'core' ? 0.9 : 0.7;
+      this._freeImpacts.push(i);
+    }
   }
 
   tryReload() {
@@ -636,7 +664,8 @@ export class Weapon {
     this.camera.getWorldDirection(this.shootDir);
     this.raycaster.set(this.shootOrigin, this.shootDir);
 
-    const zombieMeshes = [];
+    const zombieMeshes = this._zombieMeshes;
+    zombieMeshes.length = 0;
     for (const z of zombies) {
       if (!z.alive) continue;
       zombieMeshes.push(z.group);
@@ -653,7 +682,15 @@ export class Weapon {
     this._spawnMuzzleFX();
     this._spawnCasing();
 
-    let result = { hit: false, headshot: false, killed: false, xp: 0, zombie: null, point: null };
+    const result = this._shotResult;
+    result.hit = false;
+    result.headshot = false;
+    result.killed = false;
+    result.xp = 0;
+    result.zombie = null;
+    result.point = null;
+    result.blast = null;
+    result.empty = false;
 
     if (hitZombie) {
       const hit = zombieHit;
@@ -661,18 +698,18 @@ export class Weapon {
       this._spawnTracer(this.muzzleWorld, hit.point);
       const zombie = hit.object.userData.zombie;
       if (zombie && zombie.alive) {
-        const local = zombie.group.worldToLocal(hit.point.clone());
+        this._hitLocal.copy(hit.point);
+        zombie.group.worldToLocal(this._hitLocal);
         const headshot =
-          hit.object.userData.part === 'head' || local.y > COMBAT.headHeight;
+          hit.object.userData.part === 'head' || this._hitLocal.y > COMBAT.headHeight;
         const applied = zombie.applyHit(WEAPON.damage, headshot, hit.point, this.shootDir);
-        result = {
-          hit: true,
-          headshot,
-          killed: applied.killed,
-          xp: applied.xp,
-          zombie,
-          point: hit.point.clone(),
-        };
+        this._resultPoint.copy(hit.point);
+        result.hit = true;
+        result.headshot = headshot;
+        result.killed = applied.killed;
+        result.xp = applied.xp;
+        result.zombie = zombie;
+        result.point = this._resultPoint;
         this.sound.hit(headshot);
         this._spawnBlood(hit.point, this.shootDir, headshot);
       }
@@ -686,8 +723,8 @@ export class Weapon {
         this._spawnImpact(worldHit.point, worldHit.face?.normal, worldHit.object);
       }
     } else {
-      const far = this.shootOrigin.clone().addScaledVector(this.shootDir, WEAPON.range);
-      this._spawnTracer(this.muzzleWorld, far);
+      this._farPoint.copy(this.shootOrigin).addScaledVector(this.shootDir, WEAPON.range);
+      this._spawnTracer(this.muzzleWorld, this._farPoint);
     }
 
     if (this.mag === 0) this.tryReload();
@@ -726,24 +763,48 @@ export class Weapon {
       this._tmpN.copy(this.shootDir).multiplyScalar(-1);
     }
 
-    if (this.impacts.length >= MAX_IMPACTS) {
-      const old = this.impacts.shift();
-      this.scene.remove(old.mesh);
+    const takeImpact = (kind) => {
+      let slot = null;
+      for (let i = this._freeImpacts.length - 1; i >= 0; i--) {
+        if (this._freeImpacts[i].kind === kind) {
+          slot = this._freeImpacts.splice(i, 1)[0];
+          break;
+        }
+      }
+      if (!slot) {
+        for (let i = 0; i < this.impacts.length; i++) {
+          if (this.impacts[i].kind === kind) {
+            slot = this.impacts.splice(i, 1)[0];
+            break;
+          }
+        }
+      }
+      return slot;
+    };
+
+    const core = takeImpact('core');
+    if (core) {
+      core.mesh.position.copy(point).addScaledVector(this._tmpN, 0.03);
+      core.mesh.material.opacity = 0.9;
+      core.mesh.visible = true;
+      core.life = 0.08;
+      core.fade = true;
+      this.impacts.push(core);
     }
 
-    const core = new THREE.Mesh(this._impactCoreGeo, this._impactCoreMat.clone());
-    core.position.copy(point).addScaledVector(this._tmpN, 0.03);
-    this.scene.add(core);
-    this.impacts.push({ mesh: core, life: 0.08, fade: true });
+    const decal = takeImpact('decal');
+    if (decal) {
+      decal.mesh.position.copy(point).addScaledVector(this._tmpN, 0.015);
+      decal.mesh.lookAt(this._tmpV.copy(point).add(this._tmpN));
+      decal.mesh.material.opacity = 0.7;
+      decal.mesh.visible = true;
+      decal.life = 3.2;
+      decal.fade = true;
+      this.impacts.push(decal);
+    }
 
-    const decal = new THREE.Mesh(this._decalGeo, this._decalMat.clone());
-    decal.position.copy(point).addScaledVector(this._tmpN, 0.015);
-    decal.lookAt(this._tmpV.copy(point).add(this._tmpN));
-    this.scene.add(decal);
-    this.impacts.push({ mesh: decal, life: 3.2, fade: true });
-
-    this._burst(this._sparkTex, point, this._tmpN, 5, 4, 0.14, 0.04, 0xffcc66, 0.35);
-    this._burst(this._dustTex, point, this._tmpN, 3, 1.2, 0.4, 0.1, 0xc4b090, 2);
+    this._burst(this._sparkTex, point, this._tmpN, 4, 4, 0.14, 0.04, 0xffcc66, 0.35);
+    this._burst(this._dustTex, point, this._tmpN, 2, 1.2, 0.4, 0.1, 0xc4b090, 2);
   }
 
   _updateReloadPose(k) {
@@ -786,11 +847,13 @@ export class Weapon {
     const flashing = this.flashT > 0;
     this.flashSprite.visible = flashing;
     if (flashing) {
-      this.flashSprite.material.rotation = Math.random() * Math.PI;
+      this.flashSprite.material.rotation = this._time * 17;
       const pulse = 0.18 + this.flashT * 3.5;
       this.flashSprite.scale.set(pulse, pulse, 1);
+      this.muzzleLight.intensity = 11 + Math.sin(this._time * 90) * 3;
+    } else {
+      this.muzzleLight.intensity = 0;
     }
-    this.muzzleLight.intensity = flashing ? 12 + Math.random() * 6 : 0;
 
     void input;
     const adsTarget = this.aiming && canShoot && !this.reloading ? 1 : 0;
@@ -826,14 +889,17 @@ export class Weapon {
     const reticle = this.model.userData.reticle;
     if (hood) {
       hood.visible = this.ads > 0.45;
-      hood.material.opacity = Math.min(0.72, (this.ads - 0.45) * 1.6);
+      hood.material.opacity = Math.min(0.78, (this.ads - 0.45) * 1.7);
     }
-    if (glass) glass.material.opacity = lerp(0.12, 0.06, this.ads);
+    if (glass) glass.material.opacity = lerp(0.1, 0.045, this.ads);
     if (reticle) {
-      const r = lerp(0.0024, 0.0032, this.ads);
-      reticle.scale.setScalar(r / 0.0024);
+      const r = lerp(0.0022, 0.0034, this.ads);
+      reticle.scale.setScalar(r / 0.0022);
       reticle.material.depthTest = this.ads < 0.65;
+      reticle.material.opacity = lerp(0.85, 1, this.ads);
     }
+    const opticGlow = this.model.userData.opticGlow;
+    if (opticGlow) opticGlow.material.opacity = lerp(0.45, 0.85, this.ads);
 
     if (this.reloading) {
       this.reloadT += dt;
@@ -900,9 +966,9 @@ export class Weapon {
         p.mesh.material.opacity *= p.life > 0.4 ? 1 : 0.9;
       }
       if (p.life <= 0) {
-        this.scene.remove(p.mesh);
-        p.mesh.material?.dispose?.();
+        p.mesh.visible = false;
         this.impacts.splice(i, 1);
+        this._freeImpacts.push(p);
       }
     }
     for (let i = this.particles.length - 1; i >= 0; i--) {
@@ -952,5 +1018,6 @@ export class Weapon {
     for (const p of this._freeParticles) this.scene.remove(p.sprite);
     for (const t of this._freeTracers) this.scene.remove(t.mesh);
     for (const c of this._freeCasings) this.scene.remove(c.mesh);
+    for (const i of this._freeImpacts) this.scene.remove(i.mesh);
   }
 }

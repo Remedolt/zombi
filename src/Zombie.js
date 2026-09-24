@@ -51,12 +51,10 @@ function buildPlaceholder(zombie, type) {
   hair.scale.set(1.05, 0.55, 1.05);
   hair.position.set(0, 1.7, -0.02);
 
-  const eyeMat = new THREE.MeshStandardMaterial({
+  const eyeMat = new THREE.MeshBasicMaterial({
     color: type.eye,
-    emissive: type.eye,
-    emissiveIntensity: 0.85,
-    roughness: 0.35,
-    metalness: 0.1,
+    toneMapped: false,
+    fog: true,
   });
   const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), eyeMat);
   const eyeR = eyeL.clone();

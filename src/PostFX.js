@@ -17,8 +17,8 @@ export class PostFX {
 
     const size = new THREE.Vector2();
     renderer.getSize(size);
-    // Mild bloom: strength / radius / high threshold
-    this.bloom = new UnrealBloomPass(size.clone(), 0.28, 0.4, 0.88);
+    // Mild bloom: strength / radius / high threshold — pops lamps & eyes, skips asphalt
+    this.bloom = new UnrealBloomPass(size.clone(), 0.32, 0.36, 0.86);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
   }
